@@ -1,0 +1,58 @@
+[project]
+name = "ads-board"
+version = "0.1.0"
+description = "Доска объявлений: backend-часть сайта объявлений с отзывами"
+authors = [
+    {name = "Alexander Schischkin", email = "schischkin1212@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "django (>=6.1,<7.0)",
+    "djangorestframework (>=3.15,<4.0)",
+    "djangorestframework-simplejwt (>=5.5,<6.0)",
+    "djoser (>=2.3,<3.0)",
+    "django-filter (>=24.0)",
+    "django-cors-headers (>=4.7,<5.0)",
+    "drf-spectacular (>=0.28,<1.0)",
+    "psycopg[binary] (>=3.2,<4.0)",
+    "pillow (>=11.0)",
+    "python-dotenv (>=1.0,<2.0)"
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.3"
+pytest-django = ">=4.9"
+pytest-cov = ">=6.0"
+flake8 = ">=7.1"
+
+# Настройки pytest живут здесь, а не в отдельном pytest.ini:
+# чем меньше конфигурационных файлов в корне, тем проще разобраться
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+# Из покрытия исключается то, что мы не писали и не тестируем:
+# миграции генерирует Django, manage.py и wsgi — точки входа
+source = ["."]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "manage.py",
+    "config/wsgi.py",
+    "config/asgi.py",
+    "*/apps.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+
+# Базы данных
+*.sqlite3
+db.sqlite3
+
+# Секреты
+# Закрываем .env и всё, что от него произошло: .env.old, .env.backup.
+# Перечислять по одному ненадёжно — резервную копию называют как придётся
+.env
+.env.*
+# Кроме шаблона: в нём нет значений, только имена переменных
+!.env.template
+
+# Медиа и статика
+media/
+staticfiles/
+
+# Отчёты и кэши
+*.log
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
