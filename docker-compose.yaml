@@ -1,0 +1,54 @@
+# Весь проект одной командой:
+#
+#   cp .env.template .env      # и заполнить SECRET_KEY
+#   docker compose up -d --build
+#
+# Наружу открыт только web. База объявлена через expose: она доступна
+# приложению по имени сервиса db, но порт на хост не пробрасывается —
+# снаружи к ней не подключиться.
+
+services:
+
+  db:
+    image: postgres:17-alpine
+    restart: always
+    # Образ Postgres ждёт переменные с префиксом POSTGRES_,
+    # а Django читает DB_* — здесь они и связываются
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    expose:
+      - "5432"
+    volumes:
+      # Без этого тома база живёт внутри контейнера и исчезает вместе с ним
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Контейнер поднимается раньше, чем Postgres готов принимать запросы.
+      # Без проверки web стартует первым и падает на migrate
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: always
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+
+volumes:
+  postgres_data:
+  media_data:
+  static_data:

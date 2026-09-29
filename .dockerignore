@@ -1,0 +1,38 @@
+# Всё перечисленное не попадает в контекст сборки.
+# Чем меньше контекст, тем быстрее сборка и тем меньше образ.
+
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+
+.venv
+venv
+ENV
+env
+
+__pycache__
+*.py[cod]
+*.egg-info
+
+# Секреты. Переменные приходят из docker-compose, а не из образа:
+# файл, попавший в слой, остаётся в нём навсегда
+.env
+.env.*
+!.env.template
+
+*.sqlite3
+db.sqlite3
+media
+staticfiles
+
+.coverage
+coverage.xml
+htmlcov
+.pytest_cache
+.mypy_cache
+
+Dockerfile
+.dockerignore
+docker-compose.yaml
