@@ -1,0 +1,193 @@
+# Доска объявлений
+
+Backend сайта объявлений: пользователи с ролями, объявления и отзывы под ними.
+
+Дипломный проект **SB1** курса Skypro «Python-разработчик».
+
+## Стек
+
+- Python 3.12+ (в образе — 3.14)
+- Django 6.1 + Django REST Framework
+- Djoser — регистрация и восстановление пароля через почту
+- djangorestframework-simplejwt — JWT-авторизация
+- django-filter — поиск объявлений по названию
+- drf-spectacular — документация OpenAPI
+- django-cors-headers — доступ для фронтенда
+- PostgreSQL — база данных
+- Docker и Docker Compose — запуск всего проекта
+- pytest — тесты
+
+## Запуск через Docker
+
+Нужен только установленный [Docker](https://docs.docker.com/get-docker/) — ни Python, ни PostgreSQL на компьютер ставить не нужно.
+
+```bash
+cp .env.template .env
+docker compose up -d --build
+```
+
+Одна команда поднимает два контейнера, применяет миграции и собирает статику. Проект открывается на http://127.0.0.1:8000/api/docs/
+
+В `.env` достаточно поменять `SECRET_KEY`, остальное уже заполнено для локального запуска.
+
+Суперпользователь создаётся один раз:
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+Спросит email и пароль — имени пользователя в проекте нет, логин это почта. Созданный так человек получает роль `admin` и в админке, и в API.
+
+### Что поднимается
+
+| Сервис | Образ | Зачем | Порт наружу |
+|---|---|---|---|
+| `web` | сборка из `Dockerfile` | Django | 8000 |
+| `db` | `postgres:17-alpine` | База данных | нет |
+
+База объявлена через `expose`: она видна приложению по имени сервиса `db`, но с хоста к ней не подключиться. `web` не стартует, пока база не ответит на healthcheck, — иначе Django падал бы на `migrate`, не дождавшись её.
+
+Данные PostgreSQL лежат в именованном томе и переживают `docker compose down`. Стереть их вместе с контейнерами: `docker compose down -v`.
+
+### Полезные команды
+
+```bash
+docker compose ps                  # что запущено
+docker compose logs -f web         # логи Django
+docker compose exec web bash       # оболочка внутри контейнера
+docker compose down                # остановить
+```
+
+## Документация
+
+| Адрес | Что это |
+|---|---|
+| `/api/docs/` | Swagger UI — можно отправлять запросы из браузера |
+| `/api/redoc/` | ReDoc — читаемый справочник |
+| `/api/schema/` | Схема OpenAPI 3 |
+| `/admin/` | Админка Django |
+
+## Модель данных
+
+### Пользователь
+
+Вместо имени пользователя — email: он же логин.
+
+| Поле | Что означает |
+|---|---|
+| `email` | Почта, используется как логин, уникальна |
+| `first_name` | Имя |
+| `last_name` | Фамилия |
+| `phone` | Телефон для связи |
+| `role` | Роль: `user` или `admin` |
+| `image` | Аватарка |
+
+Роль хранится отдельно от `is_superuser`: `is_superuser` — это про админку Django, `role` — про права в API. При создании суперпользователя роль `admin` проставляется автоматически, чтобы они не разъезжались.
+
+### Объявление
+
+| Поле | Что означает |
+|---|---|
+| `title` | Название товара |
+| `price` | Цена, целое неотрицательное число |
+| `description` | Описание товара |
+| `author` | Пользователь, создавший объявление |
+| `created_at` | Дата и время создания |
+
+Объявления отсортированы по дате: чем новее, тем выше. Сортировка задана в модели, а не во вьюхе — иначе её пришлось бы повторять в каждой выборке, а пагинация без явного порядка выдавала бы дубли между страницами.
+
+### Отзыв
+
+| Поле | Что означает |
+|---|---|
+| `text` | Текст отзыва |
+| `author` | Пользователь, оставивший отзыв |
+| `ad` | Объявление, под которым оставлен отзыв |
+| `created_at` | Дата и время создания |
+
+## Авторизация и восстановление пароля
+
+Регистрация и сброс пароля — через Djoser, авторизация — по JWT.
+
+```bash
+# Регистрация
+POST /users/
+{ "email": "user@example.com", "password": "Str0ngPass!42" }
+
+# Получение токенов
+POST /api/token/
+{ "email": "user@example.com", "password": "Str0ngPass!42" }
+→ { "access": "...", "refresh": "..." }
+
+# Все остальные запросы
+Authorization: Bearer <access>
+```
+
+Восстановление пароля в два шага:
+
+```bash
+POST /users/reset_password/
+{ "email": "user@example.com" }
+→ 204, на почту уходит ссылка вида /password/reset/confirm/{uid}/{token}
+
+POST /users/reset_password_confirm/
+{ "uid": "...", "token": "...", "new_password": "N3wStr0ngPass!77" }
+→ 204
+```
+
+При `EMAIL_MODE=console` письмо печатается в лог контейнера — там же видно ссылку. Это удобно при разработке: почтовый сервер не нужен.
+
+## Переменные окружения
+
+Полный список с комментариями — в `.env.template`.
+
+| Переменная | Зачем |
+|---|---|
+| `SECRET_KEY` | Ключ Django |
+| `DEBUG` | `True` для разработки |
+| `ALLOWED_HOSTS` | Домены через запятую |
+| `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Их читает и Django, и контейнер с PostgreSQL |
+| `DB_HOST` | `db` для Docker, `localhost` без него |
+| `CORS_ALLOWED_ORIGINS` | Домены фронтенда через запятую |
+| `EMAIL_MODE` | `console` или `smtp` |
+| `ACCESS_TOKEN_MINUTES`, `REFRESH_TOKEN_DAYS` | Время жизни токенов |
+
+Отдельно про почту: в Django 6.1 настройки `EMAIL_*` объявлены устаревшими и заменены на `MAILERS`. Старые и новые нельзя использовать вместе — проект просто не стартует. Поэтому в `settings.py` только `MAILERS`, а переменные `EMAIL_HOST` и прочие подставляются внутрь него.
+
+## Тесты
+
+```bash
+docker compose exec web pytest
+docker compose exec web pytest --cov --cov-report=term-missing
+```
+
+## Стиль кода
+
+```bash
+docker compose exec web flake8 .
+```
+
+Настройки в `setup.cfg`. Длина строки — 119 символов: в Django-проекте имена путей и приложений длинные, и перенос по 79 делает строку хуже, а не лучше. Миграции из проверки исключены, их пишет сам Django.
+
+## Установка без Docker
+
+Понадобятся Python 3.12+, Poetry и запущенный PostgreSQL.
+
+```bash
+poetry install --no-root
+cp .env.template .env
+```
+
+В `.env` поменяйте одну строку — база теперь своя, а не контейнерная:
+
+```
+DB_HOST=localhost
+```
+
+Дальше как обычно:
+
+```bash
+poetry run python manage.py migrate
+poetry run python manage.py createsuperuser
+poetry run python manage.py runserver
+```
