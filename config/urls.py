@@ -17,6 +17,9 @@ urlpatterns = [
     # /users/users/reset_password/ и 404 на адресах из ТЗ
     path('', include('djoser.urls')),
 
+    # Объявления и отзывы
+    path('', include('ads.urls')),
+
     # Выдача и обновление JWT
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
