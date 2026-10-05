@@ -26,7 +26,7 @@ class Ad(models.Model):
         # выборке, и пагинация без явного порядка выдавала бы дубли
         ordering = ('-created_at',)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.title} — {self.price} ₽'
 
 
@@ -55,5 +55,5 @@ class Review(models.Model):
         verbose_name_plural = 'Отзывы'
         ordering = ('-created_at',)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Отзыв {self.author} к «{self.ad.title}»'
