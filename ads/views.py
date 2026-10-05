@@ -1,8 +1,12 @@
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.serializers import BaseSerializer
 from rest_framework.viewsets import ModelViewSet
 
 from ads.filters import AdFilter
@@ -38,12 +42,12 @@ class AdViewSet(ModelViewSet):
     filter_backends = (DjangoFilterBackend,)
     filterset_class = AdFilter
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> type[BaseSerializer]:
         if self.action == 'retrieve':
             return AdDetailSerializer
         return AdSerializer
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         if self.action == 'list':
             # Единственное, что открыто анониму: витрина объявлений
             self.permission_classes = (AllowAny,)
@@ -53,12 +57,12 @@ class AdViewSet(ModelViewSet):
             self.permission_classes = (IsAuthenticated,)
         return super().get_permissions()
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: BaseSerializer) -> None:
         serializer.save(author=self.request.user)
 
     @extend_schema(summary='Мои объявления')
     @action(detail=False, methods=('get',), permission_classes=(IsAuthenticated,))
-    def me(self, request):
+    def me(self, request: Request) -> Response:
         """Объявления текущего пользователя.
 
         Отдельный адрес, а не фильтр ?author=<id>: так нельзя случайно
@@ -88,7 +92,7 @@ class ReviewViewSet(ModelViewSet):
     # не может определить модель и выдаёт предупреждения
     queryset = Review.objects.none()
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Review]:
         # Выборка всегда ограничена одним объявлением из адреса.
         # Поэтому по чужому id отзыв не достать даже случайно
         return (
@@ -97,14 +101,14 @@ class ReviewViewSet(ModelViewSet):
             .select_related('author', 'ad')
         )
 
-    def get_permissions(self):
+    def get_permissions(self) -> list[BasePermission]:
         if self.action in ('update', 'partial_update', 'destroy'):
             self.permission_classes = (IsAuthenticated, IsAuthorOrAdmin)
         else:
             self.permission_classes = (IsAuthenticated,)
         return super().get_permissions()
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: BaseSerializer) -> None:
         # Объявление берётся из адреса, а не из тела запроса.
         # Нет такого объявления — честный 404, а не отзыв в пустоту
         ad = get_object_or_404(Ad, pk=self.kwargs['ad_pk'])

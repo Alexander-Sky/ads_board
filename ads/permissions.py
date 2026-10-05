@@ -1,4 +1,8 @@
+from typing import Any
+
 from rest_framework.permissions import BasePermission
+from rest_framework.request import Request
+from rest_framework.views import APIView
 
 
 class IsAuthorOrAdmin(BasePermission):
@@ -11,7 +15,7 @@ class IsAuthorOrAdmin(BasePermission):
 
     message = 'Изменять и удалять можно только свои записи'
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
         user = request.user
         # getattr, а не user.is_admin: у AnonymousUser такого свойства нет,
         # и обращение к нему упало бы с AttributeError вместо честного 403

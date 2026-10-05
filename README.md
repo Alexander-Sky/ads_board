@@ -17,6 +17,22 @@ Backend сайта объявлений: пользователи с ролям�
 - Docker и Docker Compose — запуск всего проекта
 - pytest — тесты
 
+## Структура проекта
+
+```text
+ads/                    # объявления и отзывы: модели, сериализаторы,
+                        # права, фильтры, пагинация, ViewSet'ы
+users/                  # пользователь с ролями, менеджер, регистрация
+config/                 # настройки Django и корневые маршруты
+tests/                  # автотесты: модели, API объявлений и отзывов
+.github/workflows/      # CI: сборка, тесты с покрытием, flake8
+Dockerfile              # образ приложения
+docker-compose.yaml     # приложение и PostgreSQL
+.env.template           # шаблон переменных окружения
+setup.cfg               # правила flake8
+pyproject.toml          # зависимости, настройки pytest и coverage
+```
+
 ## Запуск через Docker
 
 Нужен только установленный [Docker](https://docs.docker.com/get-docker/) — ни Python, ни PostgreSQL на компьютер ставить не нужно.
@@ -281,6 +297,8 @@ docker compose up -d --force-recreate web
 docker compose exec web pytest
 docker compose exec web pytest --cov --cov-report=term-missing
 ```
+
+Те же проверки выполняются автоматически в GitHub Actions на каждый push и pull request в `main` и `develop`: конвейер собирает образ, поднимает контейнеры, прогоняет тесты с порогом покрытия 75% и проверяет стиль. Конфигурация — `.github/workflows/ci.yml`.
 
 **44 теста, покрытие 98%** при требуемых 75%. Проверяются модели, вся матрица прав из таблицы выше, пагинация по четыре, поиск по названию, сортировка «новые сверху», изоляция отзывов между объявлениями и то, что автор берётся из токена, а не из тела запроса.
 

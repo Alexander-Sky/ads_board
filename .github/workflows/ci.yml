@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # В CI секретов нет и не нужно: шаблон содержит рабочие значения
+      # для локального запуска, а тесты поднимают собственную базу
+      - name: Create environment file
+        run: cp .env.template .env
+
+      - name: Build and start services
+        run: docker compose up -d --build
+
+      # Контейнер web стартует раньше, чем доходит до runserver: сначала
+      # миграции и сборка статики. Без ожидания тесты могут начаться,
+      # пока приложение ещё поднимается
+      - name: Wait for application
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://127.0.0.1:8000/api/docs/; then
+              echo "Приложение отвечает"
+              exit 0
+            fi
+            echo "Попытка $i: ждём 2 секунды"
+            sleep 2
+          done
+          echo "Приложение не поднялось за минуту"
+          docker compose logs web
+          exit 1
+
+      - name: Run tests with coverage
+        run: docker compose exec -T web pytest --cov=ads --cov=users --cov-fail-under=75
+
+      - name: Check code style
+        run: docker compose exec -T web flake8 .
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
